@@ -1,0 +1,277 @@
+t3 <- matrix(c(3,
+               2,
+               5,
+               4,
+               20,
+               -5),ncol=2,byrow = T)
+sk <- 0
+est <- matrix(apply(t3,1,function(x) x[1]+sk*x[2]),nrow=1)
+colnames(est) <- c("a","b","s")
+rownames(est) <- c("0.5C")
+n0=3
+est0 <- matrix(rep(est[1,],n0),ncol=3,byrow = T)
+colnames(est0) <- c("a","b","s")
+
+
+
+set.seed(1)
+x <- apply(matrix(est0[,3],ncol=1),1,
+           function(x){rweibull(45,shape=x,scale=(1/gamma(1/x+1)))})
+x1 <- apply(x,2,function(s){cumsum(s)})
+x2 <- matrix(0,ncol=3)
+for(i in 1:n0){
+  t <- cbind (rep(est0[i,1],45),rep(est0[i,2],45),x1[,i])
+  x2 <- rbind(x2,t)
+}
+x2 <- x2[-1,]
+Ti<- apply(x2,1,function(x){log(x[2]*x[3]/x[1]+1)/x[2]})
+Ti <- matrix(Ti,ncol=n0)
+Ti <- rbind(rep(0,n0),Ti)
+rm(i,t)
+
+
+########################################################################
+ll.wei = function(a,b,c,data){  
+  sumt =sum(data);J=length(data)
+  k <- c()
+  for (s in 2:J){
+    t<-  (c-1)*(lgamma(1/c+1)+log((a/b)*(exp(b*data[s])-exp(b*data[s-1]))))
+    k <- append(k,t)
+  }
+  k1 <- c()
+  for (s in 2:J){
+    t1<- (a/b*gamma(1/c+1)*(exp(b*data[s])-exp(b*data[s-1])))^c
+    k1 <- append(k1,t1)
+  }
+  ans= 45*lgamma(1/c+1)+45*log(c)+45*log(a)+sum(k)-sum(k1)+b*sumt
+  -ans
+}
+
+tll.wei<- function(a,b,s,data){ # ll is -loglikeihood, so here is also -logL
+  t1 <- sum(apply(matrix(1:n0,ncol = 1),1,function(x) ll.wei(a,b,s,data[,x])))
+  ans <- t1
+  ans
+}
+tll1.wei <- function(theta,data){
+  tll.wei(theta[1]*10^(-1),theta[2]*10^(-1),theta[3]*10^(-1),data)
+}
+
+Opt<-function(x){
+  iter=x[4]
+  initial=c(x[1],x[2],x[3])
+  error=1
+  before=0
+  while(abs(error)-1e-15>0){
+    step1=try(optim(initial,tll1.wei,control=list(factr=1e-15,maxit=10^9),hessian=T,data=Ti),silent = T)
+    if(step1$convergence==0){
+      initial <- step1$par
+      error <- step1$value-before
+      before <- step1$value
+    }
+  }
+  parameter <- c(step1$par[1]*10^(-1),step1$par[2]*10^(-1),step1$par[3]*10^(-1))
+  I=solve(step1$hessian)
+  sd <- c(sqrt(I[1,1]*10^(-2)),sqrt(I[2,2]*10^(-2)),sqrt(I[3,3]*10^(-2)))
+  return(c(parameter,-step1$value,sd)) #logL
+}
+N=50
+rn <- matrix(0,ncol=7,nrow=N)
+set.seed(1);rn[,1]<-runif(N,0,100);rn[,2]<-runif(N,0,100);rn[,3]<-runif(N,0,100)
+set.seed(1);rn[,4]<-runif(N,0,100);rn[,5]<-runif(N,0,100);rn[,6]<-runif(N,0,100)
+rn[,7]<-1:N
+#Opt(as.matrix(rn)[1,])
+result=apply(as.matrix(rn),1,function(x){Opt(x)})
+result <- t(result)
+ind1 <- which.max(result[,4])
+t3.wei <- matrix(result[ind1,],ncol=1)
+##########################################################################################
+
+alphalikelihood1 = function(a,b,c,data){  
+  J=length(data)
+  k <- c()
+  for (s in 2:J){
+    t<-  (c-1)*(lgamma(1/c+1)+log((a/b)*(exp(b*data[s])-exp(b*data[s-1]))))
+    k <- append(k,t)
+  }
+  k1 <- c()
+  for (s in 2:J){
+    t1<- (a/b*gamma(1/c+1)*(exp(b*data[s])-exp(b*data[s-1])))^c
+    k1 <- append(k1,t1)
+  }
+  ans= 45*log(a)+sum(k)-sum(k1)
+  ans
+}
+
+
+alphalikelihood1.1<- function(theta,data){ 
+  a <- theta[1];b <- theta[2];s <- theta[3]
+  ans <- sum(apply(matrix(1:n0,ncol = 1),1,function(x) alphalikelihood1(a,b,s,data[,x])))
+  ans
+}
+
+
+alphalikelihood2 = function(a,b,c,data){  
+  sumt =sum(data);J=length(data)
+  k <- c()
+  for (s in 2:J){
+    t<-  (c-1)*(lgamma(1/c+1)+log((a/b)*(exp(b*data[s])-exp(b*data[s-1]))))
+    k <- append(k,t)
+  }
+  k1 <- c()
+  for (s in 2:J){
+    t1<- (a/b*gamma(1/c+1)*(exp(b*data[s])-exp(b*data[s-1])))^c
+    k1 <- append(k1,t1)
+  }
+  ans= sum(k)-sum(k1)+b*sumt
+  ans
+}
+
+
+alphalikelihood2.1 <- function(theta,data){ 
+  a <- theta[1];b <- theta[2];s <- theta[3]
+  ans <- sum(apply(matrix(1:n0,ncol = 1),1,function(x) alphalikelihood2(a,b,s,data[,x])))
+  ans
+}
+
+alphalikelihood3 = function(a,b,c,data){  
+  J=length(data)
+  k <- c()
+  for (s in 2:J){
+    t<-  (c-1)*(lgamma(1/c+1)+log((a/b)*(exp(b*data[s])-exp(b*data[s-1]))))
+    k <- append(k,t)
+  }
+  k1 <- c()
+  for (s in 2:J){
+    t1<- (a/b*gamma(1/c+1)*(exp(b*data[s])-exp(b*data[s-1])))^c
+    k1 <- append(k1,t1)
+  }
+  ans= 45*lgamma(1/c+1)+45*log(c)+sum(k)-sum(k1)
+  ans
+}
+
+
+alphalikelihood3.1<- function(theta,data){ 
+  a <- theta[1];b <- theta[2];s <- theta[3]
+  ans <- sum(apply(matrix(1:n0,ncol = 1),1,function(x) alphalikelihood3(a,b,s,data[,x])))
+  ans
+}
+
+
+###########################################################################################
+####   1. 
+
+m=2*10^4;N=2000;k=10
+a00 <- 1;b00 <- 1;s00 <-13
+initial <- c(a00,b00,s00)
+sigma_proposal=c(0.1,0.1,3)
+beta_prior=c(0.1,0.1,2)^2/t3.wei[1:3,1]
+alpha_prior=t3.wei[1:3,1]/beta_prior
+a0 <- c();b0 <- c();s0 <- c()
+alpha1 <- c(); alpha2 <- c(); alpha3 <- c()
+accept1 <- 0;accept2 <- 0;accept3 <- 0
+set.seed(1)
+u <- runif(m+N*k)
+u <- log(u)
+start <- Sys.time()
+for(i in 1:(m+N*k)){
+  #a0
+  repeat{
+    z1 <- rnorm(1,a00,sigma_proposal[1])
+    if(z1>0){break}
+  }
+  p1 <- (alpha_prior[1]-1)*log(z1)-z1/beta_prior[1]
+  p0 <- (alpha_prior[1]-1)*log(a00)-a00/beta_prior[1]
+  alpha1[i] <- alpha <- min(alphalikelihood1.1(c(z1,b00,s00),Ti)-alphalikelihood1.1(c(a00,b00,s00),Ti)+p1-p0,0)
+  if(alpha>u[i]){
+    a0[i] <- z1
+    accept1 <- accept1+1
+  }else{
+    a0[i] <- a00
+    accept1 <- accept1
+  }
+  a00 <- a0[i]
+  
+  #b0
+  repeat{
+    z3 <- rnorm(1,b00,sigma_proposal[2])
+    if(z3>0){break}
+  }
+  p1 <- (alpha_prior[2]-1)*log(z3)-z3/beta_prior[2]
+  p0 <- (alpha_prior[2]-1)*log(b00)-b00/beta_prior[2]
+  alpha2[i] <- alpha <- min(alphalikelihood2.1(c(a00,z3,s00),Ti)-alphalikelihood2.1(c(a00,b00,s00),Ti)+p1-p0,0)
+  if(alpha>u[i]){
+    b0[i] <- z3
+    accept2 <- accept2+1
+  }else{
+    b0[i] <- b00
+    accept2 <- accept2
+  }
+  b00 <- b0[i]
+  
+  #beta0
+  repeat{
+    z5 <- rnorm(1,s00,sigma_proposal[3])
+    if(z5>0){break}
+  }
+  p1 <- (alpha_prior[3]-1)*log(z5)-z5/beta_prior[3]
+  p0 <- (alpha_prior[3]-1)*log(s00)-s00/beta_prior[3]
+  alpha3[i] <- alpha <- min(alphalikelihood3.1(c(a00,b00,z5),Ti)-alphalikelihood3.1(c(a00,b00,s00),Ti)+p1-p0,0)
+  if(alpha>u[i]){
+    s0[i] <- z5
+    accept3 <- accept3+1
+  }else{
+    s0[i] <- s00
+    accept3 <- accept3
+  }
+  s00 <- s0[i]
+}
+end <- Sys.time()
+end-start
+
+mcmc <- function(x){return(c(mean(x),sd(x),quantile(x, probs = c(0.025, 0.975))))}
+mcmc_table <- t(apply(rbind(a0[seq(m+k,m+N*k,k)],b0[seq(m+k,m+N*k,k)],
+                            s0[seq(m+k,m+N*k,k)]),1,mcmc))
+mcmc_table
+mcmc_table <- cbind("initial" = initial,
+                    "proposal density:N(,sd=)"=sigma_proposal,
+                    "prior:Gamma(alpha=,)"=alpha_prior,
+                    "prior:Gamma(,beta=)"=beta_prior,
+                    "prior:Gamma_variance"=c(0.1,0.1,2)^2,
+                    "Acceptance rate"=c(accept1,accept2,accept3)/(m+N*k),
+                    "true value"=c(3,5,20),mean=mcmc_table[,1],mle=t3.wei[1:3,1],
+                    sd=mcmc_table[,2],"sd of mle"=t3.wei[5:7,1],mcmc_table[,-c(1:2)])
+mcmc_table
+write.csv(mcmc_table,"mcmc.csv")
+
+
+
+
+par(mfrow=c(3,1))
+plot(a0,type = "l",xlab = "iteration times (40000)",ylab="a0",main="Trace of MCMC sample of a0",
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+plot(b0,type = "l",xlab = "iteration times (40000)",ylab="b0",main="Trace of MCMC sample of b0",
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+plot(s0,type = "l",xlab = "iteration times (40000)",ylab="beta0",main="Trace of MCMC sample of beta0",
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+
+
+plot(a0[seq(m+k,m+N*k,k)],type = "l",xlab = "iteration times (2000)",
+     ylab="a0",main="Trace of posterior sample of a0",
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+plot(b0[seq(m+k,m+N*k,k)],type = "l",xlab = "iteration times (2000)",
+     ylab="b0",main="Trace of posterior sample of b0",
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+plot(s0[seq(m+k,m+N*k,k)],type = "l",xlab = "iteration times (2000)",
+     ylab="beta0",main="Trace of posterior sample of beta0",
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+par(mfrow=c(1,1))
+
+
+par(mfrow=c(3,1))
+plot(density(a0[seq(m+k,m+N*k,k)]),main="posterior density of a0",
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+plot(density(b0[seq(m+k,m+N*k,k)]),main="posterior density of b0",
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+plot(density(s0[seq(m+k,m+N*k,k)]),main="posterior density of beta0",
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+par(mfrow=c(1,1))

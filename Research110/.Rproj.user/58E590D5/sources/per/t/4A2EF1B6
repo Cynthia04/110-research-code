@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1629127623309.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "266786381",
+    "id" : "4A2EF1B6",
+    "lastKnownWriteTime" : 1629740155,
+    "last_content_update" : 1629740155707,
+    "path" : "D:/1101/research/Research110/2021.7 8/table3 regenerate data.R",
+    "project_path" : "2021.7 8/table3 regenerate data.R",
+    "properties" : {
+        "cursorPosition" : "347,0",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
