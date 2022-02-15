@@ -1,3 +1,0 @@
-library(BRugs)
-library(R2OpenBUGS)
-library(coda)
